@@ -14,17 +14,28 @@ from src.constants import (
 )
 from src.parser import parse_command
 from src.script_runner import ScriptRunner
+from src.vfs import VirtualFileSystem
 
 
 class ShellEmulatorApp:
     """Класс графического приложения эмулятора."""
 
-    def __init__(self, root: tk.Tk, vfs_name: str, vfs_path: str, script_path: str) -> None:
+    def __init__(self, root: tk.Tk, vfs_path: str, script_path: str) -> None:
         """Инициализация приложения."""
         self.root = root
-        self.vfs_name = vfs_name
         self.vfs_path = vfs_path
         self.script_path = script_path
+        self.vfs = VirtualFileSystem()
+        self.vfs_name = DEFAULT_VFS_NAME
+
+        # Загрузка VFS
+        if self.vfs_path:
+            error = self.vfs.load_from_file(self.vfs_path)
+            if error:
+                # Если файл не загрузился, покажем ошибку, но дадим работать
+                self.vfs = VirtualFileSystem() 
+        else:
+            self.vfs = VirtualFileSystem()
 
         # Настройка окна
         self.root.title(WINDOW_TITLE_FORMAT.format(self.vfs_name))
@@ -44,13 +55,16 @@ class ShellEmulatorApp:
 
         self.print_output("Добро пожаловать в эмулятор оболочки!")
         
+        if self.vfs_path and error:
+            self.print_output(f"ВНИМАНИЕ: {error}")
+
         # Запуск скрипта, если он передан
         if self.script_path:
             self.print_output(f"Запуск скрипта: {self.script_path}")
             runner = ScriptRunner(self.script_path, self.execute_command)
-            error = runner.run()
-            if error:
-                self.print_output(f"ОШИБКА: {error}")
+            script_error = runner.run()
+            if script_error:
+                self.print_output(f"ОШИБКА: {script_error}")
             else:
                 self.print_output("Скрипт успешно выполнен.")
 
@@ -81,6 +95,11 @@ class ShellEmulatorApp:
 
     def execute_command(self, command: str, args: list[str]) -> tuple[bool, str]:
         """Выполняет одну команду. Возвращает успех и сообщение."""
+        if command == "vfs-init":
+            self.vfs = VirtualFileSystem()
+            self.print_output("VFS сброшена к состоянию по умолчанию.")
+            return True, "OK"
+
         if command in ("ls", "cd"):
             self.print_output(f"Команда: {command}, Аргументы: {args}")
             return True, "OK"
@@ -93,18 +112,16 @@ class ShellEmulatorApp:
 def main() -> None:
     """Запуск приложения с разбором аргументов."""
     parser = argparse.ArgumentParser(description="Эмулятор оболочки ОС")
-    parser.add_argument("--vfs", default=DEFAULT_VFS_NAME, help="Путь к VFS")
+    parser.add_argument("--vfs", default="", help="Путь к VFS")
     parser.add_argument("--script", default="", help="Путь к стартовому скрипту")
     
     args = parser.parse_args()
 
-    # Отладочный вывод параметров (как требует задание)
     print(DEBUG_CONFIG_FORMAT.format("VFS Path", args.vfs))
     print(DEBUG_CONFIG_FORMAT.format("Script Path", args.script))
 
     root = tk.Tk()
-    # Временно используем заглушку для имени VFS, пока не подключили JSON
-    app = ShellEmulatorApp(root, DEFAULT_VFS_NAME, args.vfs, args.script)
+    app = ShellEmulatorApp(root, args.vfs, args.script)
     root.mainloop()
 
 
