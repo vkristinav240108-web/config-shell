@@ -1,0 +1,4 @@
+ls "моя папка"
+cd test
+unknown_command
+ls
