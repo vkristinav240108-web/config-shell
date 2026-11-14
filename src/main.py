@@ -124,8 +124,8 @@ class ShellEmulatorApp:
             result = self.command_handler.cmd_uniq(args)
             self.print_output(result)
             return True, "OK"
-            
-            if command == "rmdir":
+
+        if command == "rmdir":
             result = self.command_handler.cmd_rmdir(args)
             if result:
                 self.print_output(result)
@@ -135,8 +135,7 @@ class ShellEmulatorApp:
         error_msg = ERR_UNKNOWN_COMMAND.format(command)
         self.print_output(error_msg)
         return False, error_msg
-        
-        
+
 
 def main() -> None:
     """Запуск приложения с разбором аргументов."""
