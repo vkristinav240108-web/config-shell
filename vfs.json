@@ -1,0 +1,31 @@
+{
+  "name": "default_vfs",
+  "root": {
+    "type": "directory",
+    "children": {
+      "home": {
+        "type": "directory",
+        "children": {
+          "user": {
+            "type": "directory",
+            "children": {
+              "readme.txt": {
+                "type": "file",
+                "content": "SGVsbG8gZnJvbSBWRlMh"
+              }
+            }
+          }
+        }
+      },
+      "etc": {
+        "type": "directory",
+        "children": {
+          "config.ini": {
+            "type": "file",
+            "content": "dGVzdD10cnVl"
+          }
+        }
+      }
+    }
+  }
+}
