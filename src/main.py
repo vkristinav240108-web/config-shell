@@ -1,24 +1,30 @@
 """Главный модуль графического интерфейса эмулятора."""
 
+import argparse
 import tkinter as tk
 from tkinter import scrolledtext
 
 from src.constants import (
+    DEBUG_CONFIG_FORMAT,
     DEFAULT_VFS_NAME,
+    ERR_UNKNOWN_COMMAND,
     WINDOW_HEIGHT,
-    WINDOW_WIDTH,
     WINDOW_TITLE_FORMAT,
+    WINDOW_WIDTH,
 )
 from src.parser import parse_command
+from src.script_runner import ScriptRunner
 
 
 class ShellEmulatorApp:
     """Класс графического приложения эмулятора."""
 
-    def __init__(self, root: tk.Tk, vfs_name: str) -> None:
+    def __init__(self, root: tk.Tk, vfs_name: str, vfs_path: str, script_path: str) -> None:
         """Инициализация приложения."""
         self.root = root
         self.vfs_name = vfs_name
+        self.vfs_path = vfs_path
+        self.script_path = script_path
 
         # Настройка окна
         self.root.title(WINDOW_TITLE_FORMAT.format(self.vfs_name))
@@ -33,10 +39,21 @@ class ShellEmulatorApp:
         # Область ввода
         self.input_entry = tk.Entry(self.root)
         self.input_entry.pack(padx=10, pady=10, fill=tk.X)
-        self.input_entry.bind("<Return>", self.process_input)
-        self.input_entry.focus()
+        self.input_entry.bind("<Return>", self.on_enter_pressed)
+        self.input_entry.focus_set()
 
         self.print_output("Добро пожаловать в эмулятор оболочки!")
+        
+        # Запуск скрипта, если он передан
+        if self.script_path:
+            self.print_output(f"Запуск скрипта: {self.script_path}")
+            runner = ScriptRunner(self.script_path, self.execute_command)
+            error = runner.run()
+            if error:
+                self.print_output(f"ОШИБКА: {error}")
+            else:
+                self.print_output("Скрипт успешно выполнен.")
+
         self.print_output("Введите 'exit' для выхода.")
 
     def print_output(self, text: str) -> None:
@@ -46,32 +63,48 @@ class ShellEmulatorApp:
         self.output_area.see(tk.END)
         self.output_area.config(state=tk.DISABLED)
 
-    def process_input(self, event=None) -> None:
-        """Обрабатывает ввод пользователя."""
+    def on_enter_pressed(self, event=None) -> None:
+        """Обрабатывает нажатие Enter в поле ввода."""
         raw_input = self.input_entry.get()
         self.input_entry.delete(0, tk.END)
-
+        
         if not raw_input.strip():
             return
-
+            
         self.print_output(f"$ {raw_input}")
-
         command, args = parse_command(raw_input)
-
+        
         if command == "exit":
             self.root.quit()
-            return
-
-        if command == "ls" or command == "cd":
-            self.print_output(f"Команда: {command}, Аргументы: {args}")
         else:
-            self.print_output(f"Ошибка: неизвестная команда '{command}'")
+            self.execute_command(command, args)
+
+    def execute_command(self, command: str, args: list[str]) -> tuple[bool, str]:
+        """Выполняет одну команду. Возвращает успех и сообщение."""
+        if command in ("ls", "cd"):
+            self.print_output(f"Команда: {command}, Аргументы: {args}")
+            return True, "OK"
+        
+        error_msg = ERR_UNKNOWN_COMMAND.format(command)
+        self.print_output(error_msg)
+        return False, error_msg
 
 
 def main() -> None:
-    """Запуск приложения."""
+    """Запуск приложения с разбором аргументов."""
+    parser = argparse.ArgumentParser(description="Эмулятор оболочки ОС")
+    parser.add_argument("--vfs", default=DEFAULT_VFS_NAME, help="Путь к VFS")
+    parser.add_argument("--script", default="", help="Путь к стартовому скрипту")
+    
+    args = parser.parse_args()
+
+    # Отладочный вывод параметров (как требует задание)
+    print(DEBUG_CONFIG_FORMAT.format("VFS Path", args.vfs))
+    print(DEBUG_CONFIG_FORMAT.format("Script Path", args.script))
+
     root = tk.Tk()
-    app = ShellEmulatorApp(root, DEFAULT_VFS_NAME)
+    # Временно используем заглушку для имени VFS, пока не подключили JSON
+    app = ShellEmulatorApp(root, DEFAULT_VFS_NAME, args.vfs, args.script)
     root.mainloop()
 
 
