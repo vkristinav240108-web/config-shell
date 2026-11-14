@@ -118,3 +118,31 @@ class CommandHandler:
                 prev = line
                 
         return "\n".join(unique_lines)
+        
+    def cmd_rmdir(self, args: list[str]) -> str:
+        """Реализация команды rmdir (удаление пустой папки)."""
+        if not args:
+            return "rmdir: missing operand"
+            
+        path_str = args[0]
+        target = self._resolve_path(path_str)
+        
+        if not target:
+            return f"rmdir: failed to remove '{path_str}': No such file or directory"
+        if not target.is_dir:
+            return f"rmdir: failed to remove '{path_str}': Not a directory"
+        if target.children:
+            return f"rmdir: failed to remove '{path_str}': Directory not empty"
+        if path_str == "/" or path_str == ".":
+            return "rmdir: cannot remove current or root directory"
+
+        # Удаляем папку из родительской
+        parent_path = path_str.strip("/").split("/")[:-1]
+        if not path_str.startswith("/"):
+            parent_path = self.vfs.path_stack + parent_path
+            
+        parent = self._find_node_by_stack(self.vfs.root, parent_path)
+        if parent and target.name in parent.children:
+            del parent.children[target.name]
+            
+        return ""
