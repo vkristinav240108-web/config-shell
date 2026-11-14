@@ -4,6 +4,7 @@ import argparse
 import tkinter as tk
 from tkinter import scrolledtext
 
+from src.commands import CommandHandler
 from src.constants import (
     DEBUG_CONFIG_FORMAT,
     DEFAULT_VFS_NAME,
@@ -29,13 +30,13 @@ class ShellEmulatorApp:
         self.vfs_name = DEFAULT_VFS_NAME
 
         # Загрузка VFS
+        load_error = ""
         if self.vfs_path:
-            error = self.vfs.load_from_file(self.vfs_path)
-            if error:
-                # Если файл не загрузился, покажем ошибку, но дадим работать
+            load_error = self.vfs.load_from_file(self.vfs_path)
+            if load_error:
                 self.vfs = VirtualFileSystem() 
-        else:
-            self.vfs = VirtualFileSystem()
+
+        self.command_handler = CommandHandler(self.vfs)
 
         # Настройка окна
         self.root.title(WINDOW_TITLE_FORMAT.format(self.vfs_name))
@@ -55,10 +56,9 @@ class ShellEmulatorApp:
 
         self.print_output("Добро пожаловать в эмулятор оболочки!")
         
-        if self.vfs_path and error:
-            self.print_output(f"ВНИМАНИЕ: {error}")
+        if load_error:
+            self.print_output(f"ВНИМАНИЕ: {load_error}")
 
-        # Запуск скрипта, если он передан
         if self.script_path:
             self.print_output(f"Запуск скрипта: {self.script_path}")
             runner = ScriptRunner(self.script_path, self.execute_command)
@@ -72,6 +72,8 @@ class ShellEmulatorApp:
 
     def print_output(self, text: str) -> None:
         """Выводит текст в область истории."""
+        if not text:
+            return
         self.output_area.config(state=tk.NORMAL)
         self.output_area.insert(tk.END, text + "\n")
         self.output_area.see(tk.END)
@@ -97,11 +99,30 @@ class ShellEmulatorApp:
         """Выполняет одну команду. Возвращает успех и сообщение."""
         if command == "vfs-init":
             self.vfs = VirtualFileSystem()
+            self.command_handler = CommandHandler(self.vfs)
             self.print_output("VFS сброшена к состоянию по умолчанию.")
             return True, "OK"
 
-        if command in ("ls", "cd"):
-            self.print_output(f"Команда: {command}, Аргументы: {args}")
+        if command == "ls":
+            result = self.command_handler.cmd_ls(args)
+            self.print_output(result)
+            return True, "OK"
+            
+        if command == "cd":
+            result = self.command_handler.cmd_cd(args)
+            if result:
+                self.print_output(result)
+                return False, result
+            return True, "OK"
+            
+        if command == "wc":
+            result = self.command_handler.cmd_wc(args)
+            self.print_output(result)
+            return True, "OK"
+
+        if command == "uniq":
+            result = self.command_handler.cmd_uniq(args)
+            self.print_output(result)
             return True, "OK"
         
         error_msg = ERR_UNKNOWN_COMMAND.format(command)
